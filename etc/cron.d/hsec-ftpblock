@@ -1,0 +1,6 @@
+#
+# Managed by Ansible
+#
+# get IPs from graylog & insert them into dosportal
+*/5 * * * * root /localservices/sbin/lockrun /var/run/ftpblock.lock /localservices/sbin/ftpblock.pl > /dev/null 2>&1
+

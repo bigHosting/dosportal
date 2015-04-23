@@ -1,0 +1,5 @@
+#
+# Managed by Ansible
+#
+# get IPs from graylog & insert them into dosportal
+*/5 * * * * root /localservices/sbin/lockrun /var/run/dosportal-graylog-asm-violations.lock /localservices/sbin/dosportal-graylog-asm-violations.pl > /dev/null 2>&1
