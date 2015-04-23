@@ -1,7 +1,59 @@
 <?php
 
+// (c) George Bolo
+// (c) Security Guy
+
+// http://stackoverflow.com/questions/26855692/reading-ini-file-from-php-which-contains-semicolons
+function parse_ini ( $filepath ) {
+        $ini = file( $filepath );
+        if ( count( $ini ) == 0 ) { return array(); }
+        $sections = array();
+        $values = array();
+        $globals = array();
+        $i = 0;
+        foreach( $ini as $line ){
+                $line = trim( $line );
+                // Comments
+                if ( $line == '' || $line{0} == ';' || $line{0} == '#' ) { continue; }
+                // Sections
+                if ( $line{0} == '[' ) {
+                        $sections[] = substr( $line, 1, -1 );
+                        $i++;
+                        continue;
+                }
+                // Key-value pair
+                list( $key, $value ) = explode( '=', $line, 2 );
+                $key = trim( $key );
+                $value = trim( $value );
+                if ( $i == 0 ) {
+                        // Array values
+                        if ( substr( $line, -1, 2 ) == '[]' ) {
+                                $globals[ $key ][] = $value;
+                        } else {
+                                $globals[ $key ] = $value;
+                        }
+                } else {
+                        // Array values
+                        if ( substr( $line, -1, 2 ) == '[]' ) {
+                                $values[ $i - 1 ][ $key ][] = $value;
+                        } else {
+                                $values[ $i - 1 ][ $key ] = $value;
+                        }
+                }
+        }
+        for( $j=0; $j<$i; $j++ ) {
+                $result[ $sections[ $j ] ] = $values[ $j ];
+        }
+    return $result + $globals;
+}
+
+$arr              = parse_ini('/etc/dosportal-graylog-mail.conf');
+$graylog_mail     = $arr['graylog']['mail'];
+$graylog_api_user = $arr['graylogapi']['user'];
+$graylog_api_pass = $arr['graylogapi']['pass'];
+
 $TIME_PERIOD = 1800;
-$MIN_HITS = 400;
+$MIN_HITS = 1000;
 $output = "# TOP IP SCRIPT VARIABLES: \n";
 
 if ( isset($_GET['time']) && is_numeric($_GET['time']) && ($_GET['time'] > 300) && ($_GET['time'] < 2000) ){
@@ -18,31 +70,35 @@ if ( isset($_GET['hits']) && is_numeric($_GET['hits']) && ($_GET['hits'] > 100) 
 }
 
 function getGraylogMessages($range){
+        global $graylog_mail;
+        global $graylog_api_user;
+        global $graylog_api_pass;
 
-    $query = 'Message:Mail Authentication Log AND ResponseCode:[300 TO 600]';
-    $e_query = urlencode($query);
 
-    $url = 'http://206.225.90.72:12900/search/universal/relative/terms?field=SourceIP&query='.$e_query.'&range='.$range;
-    echo $url;
-    $curl = curl_init();
+        $query = 'Message:Mail Authentication Log AND ResponseCode:[300 TO 600]';
+        $e_query = urlencode($query);
 
-    $opt = array(
-        CURLOPT_URL=>$url,
-        CURLOPT_USERAGENT => "Mozilla",
-        CURLOPT_CUSTOMREQUEST =>"GET",
-        CURLOPT_RETURNTRANSFER=>true,
-        CURLOPT_FOLLOWLOCATION=>false,
-        CURLOPT_CONNECTTIMEOUT=>10,
-        CURLOPT_USERPWD=>"USER:PASS",
-        CURLOPT_HTTPAUTH,
-        CURLAUTH_ANY,
-    );
-    curl_setopt_array($curl, $opt);
-    $output = curl_exec($curl);
-    $http_status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    curl_close($curl);
+        $url = 'http://' . $graylog_mail . ':12900/search/universal/relative/terms?field=SourceIP&query='.$e_query.'&range='.$range;
+        echo $url;
+        $curl = curl_init();
 
-    return $output;
+        $opt = array(
+                CURLOPT_URL=>$url,
+                CURLOPT_USERAGENT => "Mozilla",
+                CURLOPT_CUSTOMREQUEST =>"GET",
+                CURLOPT_RETURNTRANSFER=>true,
+                CURLOPT_FOLLOWLOCATION=>false,
+                CURLOPT_CONNECTTIMEOUT=>10,
+                CURLOPT_USERPWD=>"$graylog_api_user:$graylog_api_pass",
+                CURLOPT_HTTPAUTH,
+                CURLAUTH_ANY,
+        );
+        curl_setopt_array($curl, $opt);
+        $output = curl_exec($curl);
+        $http_status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        curl_close($curl);
+
+        return $output;
 
 }
 
